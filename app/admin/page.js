@@ -201,7 +201,7 @@ export default function AdminPage() {
               ))}
             </div>
 
-            <div className="bg-gradient-to-r from-yellow-600/20 to-yellow-400/10 border border-yellow-500/30 rounded-2xl p-6 mb-8">
+            <div className="bg-linear-to-r from-yellow-600/20 to-yellow-400/10 border border-yellow-500/30 rounded-2xl p-6 mb-8">
               <p className="text-gray-400 text-sm mb-1">{lang === 'ar' ? 'إجمالي الإيرادات المؤكدة' : 'Total Confirmed Revenue'}</p>
               <div className="text-4xl font-black text-yellow-400">
                 {totalRevenue.toLocaleString()} {lang === 'ar' ? 'ريال' : 'SAR'}
@@ -229,7 +229,7 @@ export default function AdminPage() {
               <div key={booking.id} className="bg-gray-800/50 border border-gray-700 rounded-2xl p-4">
                 <div className="flex items-start justify-between gap-3 flex-wrap">
                   <div className="flex gap-3">
-                    <img src={booking.properties?.image_url} className="w-16 h-14 rounded-xl object-cover flex-shrink-0" />
+                    <img src={booking.properties?.image_url} className="w-16 h-14 rounded-xl object-cover shrink-0" />
                     <div>
                       <h3 className="font-black text-white">
                         {lang === 'ar' ? booking.properties?.title_ar : booking.properties?.title_en}
