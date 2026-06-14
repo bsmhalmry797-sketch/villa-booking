@@ -79,7 +79,7 @@ useEffect(() => {
 
      {/* اليمين */}
      <div className="flex items-center gap-3">
-       <span className="text-sm hidden md:block">0590919995</span>
+       <span className="text-sm hidden md:block">0500721012</span>
 
        {/* زر اللغة */}
        <button
