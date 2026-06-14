@@ -9,7 +9,8 @@ export default function Hero() {
     <section
       className="min-h-screen flex items-center justify-center text-center text-white"
       style={{
-        backgroundImage: 'linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url(https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1920)',
+        // ✅ تم تغيير الرابط الخارجي إلى مسار الصورة المحلية داخل مجلد public
+        backgroundImage: 'linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url(/YY.jpg)',
         backgroundSize: 'cover',
         backgroundPosition: 'center'
       }}
