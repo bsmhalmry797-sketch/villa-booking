@@ -145,7 +145,7 @@ export default function PropertyPage() {
               </Link>
 
               <a
-                href="https://wa.me/966590919995"
+                href="https://wa.me/966500721012"
                 target="_blank"
                 className="block w-full mt-3 border border-green-500 text-green-600 text-center font-bold py-3 rounded-xl hover:bg-green-50 transition text-sm"
               >

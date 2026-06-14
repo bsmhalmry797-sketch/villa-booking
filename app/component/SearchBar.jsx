@@ -3,17 +3,31 @@
 import { useState } from 'react'
 import { useLang } from '../context/LanguageContext'
 import { useRouter } from 'next/navigation'
+import toast from 'react-hot-toast' // 💡 اختياري: لتنبيه المستخدم إذا لم يختر التاريخ
 
 export default function SearchBar() {
-  const { t } = useLang()
+  const { t, lang } = useLang()
   const router = useRouter()
 
   const [checkIn, setCheckIn] = useState('')
   const [checkOut, setCheckOut] = useState('')
   const [guests, setGuests] = useState(2)
 
-  function handleSearch() {
-    // نبني الـ URL مع البيانات
+  function handleSearch(e) {
+    // ✅ منع أي سلوك افتراضي قد يعطل التنقل في بعض المتصفحات
+    e.preventDefault()
+
+    // 🔍 تحقق: التأكد من أن المستخدم اختار التواريخ قبل الانتقال
+    if (!checkIn || !checkOut) {
+      toast.error(
+        lang === 'ar' 
+          ? '⚠️ الرجاء اختيار تاريخ الوصول والمغادرة' 
+          : '⚠️ Please select check-in and check-out dates'
+      )
+      return
+    }
+
+    // ✅ بناء الـ URL والتوجه فوراً لصفحة البحث
     router.push(`/search?checkIn=${checkIn}&checkOut=${checkOut}&guests=${guests}`)
   }
 
@@ -26,7 +40,8 @@ export default function SearchBar() {
           <span className="text-green-600 text-sm font-bold">✅ {t.open}</span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* ✅ تحويل الديف الخارجي إلى <form> ليدعم الـ Accessibility وضغط زر Enter في الكيبورد */}
+        <form onSubmit={handleSearch} className="grid grid-cols-1 md:grid-cols-4 gap-4">
 
           <div>
             <label className="block text-xs text-gray-500 mb-1">{t.checkIn}</label>
@@ -44,7 +59,7 @@ export default function SearchBar() {
             <input
               type="date"
               value={checkOut}
-              min={checkIn}
+              min={checkIn || new Date().toISOString().split('T')[0]} // يمنع اختيار تاريخ مغادرة قبل تاريخ الوصول
               onChange={e => setCheckOut(e.target.value)}
               className="w-full border border-gray-200 rounded-lg p-2 text-sm focus:outline-none focus:border-yellow-500"
             />
@@ -57,21 +72,21 @@ export default function SearchBar() {
               min="1"
               max="20"
               value={guests}
-              onChange={e => setGuests(e.target.value)}
+              onChange={e => setGuests(parseInt(e.target.value) || 1)} // التأكد من حفظها كرقم دائماً
               className="w-full border border-gray-200 rounded-lg p-2 text-sm focus:outline-none focus:border-yellow-500"
             />
           </div>
 
           <div className="flex items-end">
             <button
-              onClick={handleSearch}
+              type="submit" // ✅ تحديد النوع كـ submit ليعمل مع نموذج الـ form تلقائياً
               className="w-full bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-2 px-4 rounded-lg transition"
             >
               {t.search}
             </button>
           </div>
 
-        </div>
+        </form>
       </div>
     </section>
   )
