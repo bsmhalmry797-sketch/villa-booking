@@ -19,10 +19,10 @@ export default function Hero() {
           {lang === 'ar' ? 'راحة تليق بك' : 'Comfort That Suits You'}
         </h1>
         <h2 className="text-4xl font-black text-yellow-400 mb-4">
-          {lang === 'ar' ? 'فيلا و شقق الضيافة' : 'Hospitality Villas & Apartments'}
+          {lang === 'ar' ? '  الإيواء' : 'Hospitality Villas & Apartments'}
         </h2>
         <p className="text-lg text-gray-300 mb-1">
-          {lang === 'ar' ? 'إقامة فاخرة • خصوصية تامة • موقع مميز في الدمام' : 'Luxury stay • Full privacy • Prime location in Dammam'}
+          {lang === 'ar' ? 'إقامة فاخرة • خصوصية تامة • موقع مميز  ' : 'Luxury stay • Full privacy • Prime location  '}
         </p>
       </div>
     </section>
