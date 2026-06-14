@@ -5,6 +5,7 @@ import { supabase } from '../../../lib/supabase'
 import { useLang } from '../../context/LanguageContext'
 import { useParams, useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
+import Link from 'next/link'
 
 export default function BookingPage() {
   const { id } = useParams()
@@ -121,9 +122,9 @@ export default function BookingPage() {
         <p className="text-gray-400 mb-6">
           {lang === 'ar' ? 'سيتواصل معك الفريق قريباً' : 'Our team will contact you soon'}
         </p>
-        <a href="/" className="bg-yellow-600 text-black font-black px-8 py-3 rounded-xl">
+        <Link href="/" className="bg-yellow-600 text-black font-black px-8 py-3 rounded-xl">
           {lang === 'ar' ? 'العودة للرئيسية' : 'Back to Home'}
-        </a>
+        </Link>
       </div>
     </div>
   )
