@@ -58,7 +58,7 @@ useEffect(() => {
 
      {/* اللوجو */}
      <div className="text-yellow-400 font-black text-lg">
-       {lang === 'ar' ? 'فيلا و شقق الضيافة' : 'Hospitality Villas'}
+       {lang === 'ar' ? 'الإيواء  ' : 'Hospitality Villas'}
      </div>
 
      {/* الروابط */}

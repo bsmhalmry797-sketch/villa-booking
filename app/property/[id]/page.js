@@ -3,223 +3,158 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../../lib/supabase'
 import { useLang } from '../../context/LanguageContext'
-import { useParams, useRouter } from 'next/navigation'
-import toast from 'react-hot-toast'
+import { useParams } from 'next/navigation'
+import Link from 'next/link'
 
-export default function BookingPage() {
+export default function PropertyPage() {
   const { id } = useParams()
   const { lang } = useLang()
-  const router = useRouter()
-
   const [property, setProperty] = useState(null)
-  const [checkIn, setCheckIn] = useState('')
-  const [checkOut, setCheckOut] = useState('')
-  const [guests, setGuests] = useState(1)
-  const [discount, setDiscount] = useState('')
-  const [discountAmount, setDiscountAmount] = useState(0)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState(false)
+  const [images, setImages] = useState([])
+  const [activeImg, setActiveImg] = useState(0)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    supabase.from('properties').select('*').eq('id', id).single()
-      .then(({ data }) => setProperty(data))
+    async function load() {
+      const { data } = await supabase
+        .from('properties')
+        .select('*, property_images(url)')
+        .eq('id', id)
+        .single()
+
+      setProperty(data)
+
+      const allImages = [
+        data.image_url,
+        ...(data.property_images?.map(img => img.url) || [])
+      ].filter(Boolean)
+
+      setImages(allImages)
+      setLoading(false)
+    }
+    load()
   }, [id])
 
-  const nights = checkIn && checkOut
-    ? Math.ceil((new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24))
-    : 0
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <p className="text-gray-400">جاري التحميل...</p>
+    </div>
+  )
 
-  const originalPrice = nights * (property?.price_per_night || 0)
-  const totalPrice = originalPrice - discountAmount
-
-  function applyDiscount() {
-    if (discount === 'VILLA10') {
-      setDiscountAmount(originalPrice * 0.10)
-      setError('')
-      toast.success('✅ خصم 10% تم تطبيقه!')
-    } else if (discount === 'VILLA20') {
-      setDiscountAmount(originalPrice * 0.20)
-      setError('')
-      toast.success('✅ خصم 20% تم تطبيقه!')
-    } else {
-      setDiscountAmount(0)
-      setError(lang === 'ar' ? 'كود الخصم غير صحيح' : 'Invalid discount code')
-    }
-  }
-
-  async function handleBooking() {
-    if (!checkIn || !checkOut) {
-      setError(lang === 'ar' ? 'اختار التواريخ' : 'Select dates')
-      return
-    }
-    if (nights <= 0) {
-      setError(lang === 'ar' ? 'تاريخ الخروج يجب أن يكون بعد الدخول' : 'Check-out must be after check-in')
-      return
-    }
-
-    setLoading(true)
-    setError('')
-
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      router.push('/auth')
-      return
-    }
-
-    const { data: conflicts } = await supabase
-      .from('bookings')
-      .select('id')
-      .eq('property_id', id)
-      .neq('status', 'cancelled')
-      .lt('check_in', checkOut)
-      .gt('check_out', checkIn)
-
-    if (conflicts && conflicts.length > 0) {
-      setError(lang === 'ar' ? '❌ هذه التواريخ محجوزة، اختار تواريخ أخرى' : '❌ These dates are unavailable')
-      setLoading(false)
-      return
-    }
-
-    const { error: bookError } = await supabase.from('bookings').insert({
-      property_id: id,
-      user_id: user.id,
-      check_in: checkIn,
-      check_out: checkOut,
-      guests,
-      total_price: totalPrice,
-      status: 'confirmed'
-    })
-
-    if (bookError) {
-      toast.error(lang === 'ar' ? 'حدث خطأ، حاول مرة ثانية' : 'Error, please try again')
-    } else {
-      toast.success(lang === 'ar' ? '✅ تم تأكيد حجزك!' : '✅ Booking confirmed!')
-      setSuccess(true)
-    }
-
-    setLoading(false)
-  }
-
-  if (success) return (
-    <div className="min-h-screen bg-black flex items-center justify-center text-center p-4">
-      <div>
-        <div className="text-7xl mb-6">✅</div>
-        <h2 className="text-2xl font-black text-yellow-400 mb-2">
-          {lang === 'ar' ? 'تم الحجز بنجاح!' : 'Booking Confirmed!'}
-        </h2>
-        <p className="text-gray-400 mb-6">
-          {lang === 'ar' ? 'سيتواصل معك الفريق قريباً' : 'Our team will contact you soon'}
-        </p>
-        <a href="/" className="bg-yellow-600 text-black font-black px-8 py-3 rounded-xl">
-          {lang === 'ar' ? 'العودة للرئيسية' : 'Back to Home'}
-        </a>
-      </div>
+  if (!property) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <p className="text-gray-400">العقار غير موجود</p>
     </div>
   )
 
   return (
     <div className="min-h-screen bg-gray-50 pt-24 pb-12 px-4">
-      <div className="max-w-lg mx-auto">
+      <div className="max-w-4xl mx-auto">
 
-        <h1 className="text-2xl font-black text-gray-900 mb-6">
-          {lang === 'ar' ? 'إتمام الحجز' : 'Complete Booking'}
-        </h1>
+        {/* Gallery */}
+        <div className="rounded-2xl overflow-hidden mb-6">
 
-        {property && (
-          <div className="bg-white rounded-2xl p-4 mb-4 flex gap-4 items-center shadow-sm"><img src={property.image_url} className="w-20 h-16 rounded-xl object-cover" />
-            <div>
-              <h3 className="font-black text-gray-900">
-                {lang === 'ar' ? property.title_ar : property.title_en}
-              </h3>
-              <p className="text-yellow-600 font-bold text-sm">
-                {property.price_per_night} {lang === 'ar' ? 'ريال/ليلة' : 'SAR/Night'}
-              </p>
-            </div>
-          </div>
-        )}
-
-        <div className="bg-white rounded-2xl shadow-sm p-6 mb-4">
-
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">
-                {lang === 'ar' ? 'تاريخ الدخول' : 'Check-in'}
-              </label>
-              <input type="date" value={checkIn}
-                min={new Date().toISOString().split('T')[0]}
-                onChange={e => setCheckIn(e.target.value)}
-                className="w-full border border-gray-200 rounded-lg p-2 text-sm focus:outline-none focus:border-yellow-500"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">
-                {lang === 'ar' ? 'تاريخ الخروج' : 'Check-out'}
-              </label>
-              <input type="date" value={checkOut} min={checkIn}
-                onChange={e => setCheckOut(e.target.value)}
-                className="w-full border border-gray-200 rounded-lg p-2 text-sm focus:outline-none focus:border-yellow-500"
-              />
-            </div>
-          </div>
-
-          <div className="mb-4">
-            <label className="block text-xs text-gray-500 mb-1">
-              {lang === 'ar' ? 'عدد الضيوف' : 'Guests'}
-            </label>
-            <input type="number" min="1" max={property?.max_guests} value={guests}
-              onChange={e => setGuests(e.target.value)}
-              className="w-full border border-gray-200 rounded-lg p-2 text-sm focus:outline-none focus:border-yellow-500"
+          {/* الصورة الكبيرة */}
+          <div className="relative">
+            <img
+              src={images[activeImg]}
+              alt={property.title_en}
+              className="w-full h-80 object-cover"
             />
+            {images.length > 1 && (
+              <span className="absolute bottom-3 left-3 bg-black/60 text-white text-xs px-2 py-1 rounded-lg">
+                {activeImg + 1} / {images.length}
+              </span>
+            )}
           </div>
 
-          <div className="mb-4">
-            <label className="block text-xs text-gray-500 mb-1">
-              {lang === 'ar' ? 'كود الخصم (اختياري)' : 'Discount Code (optional)'}
-            </label>
-            <div className="flex gap-2">
-              <input type="text" value={discount} placeholder="VILLA10"
-                onChange={e => setDiscount(e.target.value.toUpperCase())}
-                className="flex-1 border border-gray-200 rounded-lg p-2 text-sm focus:outline-none focus:border-yellow-500"
-              />
-              <button onClick={applyDiscount}
-                className="bg-gray-100 hover:bg-gray-200 px-4 rounded-lg text-sm font-bold transition">
-                {lang === 'ar' ? 'تطبيق' : 'Apply'}
-              </button>
+          {/* الصور المصغرة */}
+          {images.length > 1 && (
+            <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
+              {images.map((img, i) => (
+                <img
+                  key={i}
+                  src={img}
+                  onClick={() => setActiveImg(i)}
+                  className={`w-20 h-14 rounded-lg object-cover cursor-pointer flex-shrink-0 transition ${
+                    activeImg === i
+                      ? 'ring-2 ring-yellow-500 opacity-100'
+                      : 'opacity-60 hover:opacity-100'
+                  }`}
+                />
+              ))}
             </div>
-          </div>
-
-          {error && (
-            <div className="bg-red-50 text-red-500 text-sm p-3 rounded-lg mb-4">{error}</div>
           )}
-
         </div>
 
-        {nights > 0 && (
-          <div className="bg-white rounded-2xl shadow-sm p-6 mb-4">
-            <h3 className="font-black mb-4">{lang === 'ar' ? 'ملخص السعر' : 'Price Summary'}</h3>
-            <div className="flex justify-between text-sm mb-2">
-              <span className="text-gray-500">
-                {property?.price_per_night} × {nights} {lang === 'ar' ? 'ليلة' : 'nights'}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+          {/* المعلومات */}
+          <div className="md:col-span-2">
+
+            <div className="flex items-center gap-3 mb-2">
+              <span className="bg-yellow-500 text-white text-xs px-2 py-1 rounded font-bold">
+                {property.type === 'villa'
+                  ? (lang === 'ar' ? 'فيلا' : 'Villa')
+                  : (lang === 'ar' ? 'شقة' : 'Apartment')}
               </span>
-              <span>{originalPrice} {lang === 'ar' ? 'ريال' : 'SAR'}</span>
             </div>
-            {discountAmount > 0 && (
-              <div className="flex justify-between text-sm mb-2 text-green-600">
-                <span>{lang === 'ar' ? 'خصم' : 'Discount'}</span>
-                <span>- {discountAmount} {lang === 'ar' ? 'ريال' : 'SAR'}</span>
+
+            <h1 className="text-2xl font-black text-gray-900 mb-1">
+              {lang === 'ar' ? property.title_ar : property.title_en}
+            </h1>
+
+            <p className="text-gray-500 text-sm mb-6">📍 {property.location}</p>
+
+            {/* التفاصيل */}
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              <div className="bg-white rounded-xl p-4 text-center shadow-sm">
+                <div className="text-2xl mb-1">🛏</div>
+                <div className="font-black text-gray-900">{property.bedrooms}</div>
+                <div className="text-xs text-gray-400">{lang === 'ar' ? 'غرف' : 'Bedrooms'}</div>
               </div>
-            )}
-            <div className="border-t pt-3 mt-3 flex justify-between font-black text-lg">
-              <span>{lang === 'ar' ? 'الإجمالي' : 'Total'}</span>
-              <span className="text-yellow-600">{totalPrice} {lang === 'ar' ? 'ريال' : 'SAR'}</span>
+              <div className="bg-white rounded-xl p-4 text-center shadow-sm">
+                <div className="text-2xl mb-1">🚿</div>
+                <div className="font-black text-gray-900">{property.bathrooms}</div>
+                <div className="text-xs text-gray-400">{lang === 'ar' ? 'حمامات' : 'Bathrooms'}</div>
+              </div>
+              <div className="bg-white rounded-xl p-4 text-center shadow-sm">
+                <div className="text-2xl mb-1">👥</div>
+                <div className="font-black text-gray-900">{property.max_guests}</div>
+                <div className="text-xs text-gray-400">{lang === 'ar' ? 'ضيوف' : 'Guests'}</div>
+              </div>
+            </div>
+
+          </div>
+
+          {/* السعر والحجز */}
+          <div>
+            <div className="bg-white rounded-2xl shadow-lg p-6 sticky top-24">
+              <div className="text-3xl font-black text-yellow-600 mb-1">
+                {property.price_per_night}
+              </div>
+              <div className="text-gray-400 text-sm mb-6">
+                {lang === 'ar' ? 'ريال / ليلة' : 'SAR / Night'}
+              </div>
+
+              <Link
+                href={`/booking/${property.id}`}
+                className="block w-full bg-yellow-600 hover:bg-yellow-500 text-white text-center font-black py-3 rounded-xl transition"
+              >
+                {lang === 'ar' ? 'احجز الآن' : 'Book Now'}
+              </Link>
+
+              <a
+                href="https://wa.me/966590919995"
+                target="_blank"
+                className="block w-full mt-3 border border-green-500 text-green-600 text-center font-bold py-3 rounded-xl hover:bg-green-50 transition text-sm"
+              >
+                💬 {lang === 'ar' ? 'تواصل واتساب' : 'WhatsApp'}
+              </a>
             </div>
           </div>
-        )}<button onClick={handleBooking} disabled={loading}
-          className="w-full bg-yellow-600 hover:bg-yellow-500 text-black font-black py-4 rounded-2xl text-lg transition">
-          {loading ? '...' : lang === 'ar' ? 'تأكيد الحجز' : 'Confirm Booking'}
-        </button>
 
+        </div>
       </div>
     </div>
   )

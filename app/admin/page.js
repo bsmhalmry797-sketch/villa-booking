@@ -27,6 +27,8 @@ export default function AdminPage() {
   const [imagePreview, setImagePreview] = useState(null)
   const [addSuccess, setAddSuccess] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [extraImages, setExtraImages] = useState([])
+  const [extraPreviews, setExtraPreviews] = useState([])
 
   useEffect(() => { loadData() }, [])
 
@@ -75,12 +77,19 @@ export default function AdminPage() {
     setImagePreview(URL.createObjectURL(file))
   }
 
+  function handleExtraImages(e) {
+    const files = Array.from(e.target.files)
+    setExtraImages(files)
+    setExtraPreviews(files.map(f => URL.createObjectURL(f)))
+  }
+
   async function addProperty() {
     if (!titleAr || !titleEn || !price) return
     setUploading(true)
 
     let imageUrl = ''
 
+    // رفع الصورة الرئيسية
     if (imageFile) {
       const fileName = `${Date.now()}-${imageFile.name}`
       const { data: uploadData } = await supabase.storage
@@ -95,27 +104,54 @@ export default function AdminPage() {
       }
     }
 
-    const { error } = await supabase.from('properties').insert({
-      title_ar: titleAr,
-      title_en: titleEn,
-      type,
-      price_per_night: Number(price),
-      location,
-      bedrooms: Number(bedrooms),
-      bathrooms: Number(bathrooms),
-      max_guests: Number(maxGuests),
-      image_url: imageUrl,
-      is_available: true
-    })
+    // إضافة العقار
+    const { error, data: newProperty } = await supabase
+      .from('properties')
+      .insert({
+        title_ar: titleAr,
+        title_en: titleEn,
+        type,
+        price_per_night: Number(price),
+        location,
+        bedrooms: Number(bedrooms),
+        bathrooms: Number(bathrooms),
+        max_guests: Number(maxGuests),
+        image_url: imageUrl,
+        is_available: true
+      })
+      .select()
+      .single()
 
-    if (!error) {
-      toast.success('🏠 تم إضافة العقار!')
+    if (!error && newProperty) {
+      // رفع الصور الإضافية
+      for (const file of extraImages) {
+        const fileName = `${Date.now()}-${file.name}`
+        const { data: uploadData } = await supabase.storage
+          .from('property-images')
+          .upload(fileName, file)
+
+        if (uploadData) {
+          const { data: urlData } = supabase.storage
+            .from('property-images')
+            .getPublicUrl(fileName)
+
+          await supabase.from('property_images').insert({
+            property_id: newProperty.id,
+            url: urlData.publicUrl
+          })
+        }
+      }
+
+      toast.success('🏠 تم إضافة العقار والصور!')
       setAddSuccess(true)
       setTimeout(() => setAddSuccess(false), 3000)
       setTitleAr(''); setTitleEn(''); setPrice('')
       setLocation(''); setBedrooms(''); setBathrooms('')
       setMaxGuests(''); setImageFile(null); setImagePreview(null)
+      setExtraImages([]); setExtraPreviews([])
       loadData()
+    } else {
+      toast.error('حدث خطأ، حاولي مرة ثانية')
     }
 
     setUploading(false)
@@ -153,7 +189,6 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-gray-950 text-white">
 
-      {/* Header */}
       <div className="bg-black border-b border-gray-800 px-6 py-4 flex items-center justify-between sticky top-0 z-40">
         <div>
           <h1 className="text-xl font-black text-yellow-400">🛠️ {lang === 'ar' ? 'لوحة التحكم' : 'Admin Panel'}</h1>
@@ -166,7 +201,6 @@ export default function AdminPage() {
 
       <div className="max-w-6xl mx-auto px-4 py-8">
 
-        {/* التابات */}
         <div className="flex gap-2 mb-8 overflow-x-auto">
           {[
             { key: 'dashboard', ar: '📊 الإحصائيات', en: '📊 Dashboard' },
@@ -303,8 +337,11 @@ export default function AdminPage() {
               </div>
             )}
 
+            {/* الصورة الرئيسية */}
             <div className="mb-6">
-              <label className="block text-sm text-gray-400 mb-2 font-bold">📸 {lang === 'ar' ? 'صورة العقار' : 'Property Image'}</label>
+              <label className="block text-sm text-gray-400 mb-2 font-bold">
+                📸 {lang === 'ar' ? 'الصورة الرئيسية' : 'Main Image'}
+              </label>
               <div onClick={() => document.getElementById('imageInput').click()}
                 className="border-2 border-dashed border-gray-600 hover:border-yellow-500 rounded-2xl h-48 flex items-center justify-center cursor-pointer transition overflow-hidden">
                 {imagePreview ? (
@@ -317,6 +354,23 @@ export default function AdminPage() {
                 )}
               </div>
               <input id="imageInput" type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+            </div>
+
+            {/* صور إضافية */}
+            <div className="mb-6">
+              <label className="block text-sm text-gray-400 mb-2 font-bold">
+                🖼️ {lang === 'ar' ? 'صور إضافية (اختياري)' : 'Extra Images (optional)'}
+              </label>
+              <input type="file" accept="image/*" multiple onChange={handleExtraImages}
+                className="w-full bg-gray-900 border border-gray-600 rounded-xl p-3 text-gray-400 text-sm"
+              />
+              {extraPreviews.length > 0 && (
+                <div className="flex gap-2 mt-3 flex-wrap">
+                  {extraPreviews.map((src, i) => (
+                    <img key={i} src={src} className="w-20 h-16 rounded-lg object-cover" />
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
