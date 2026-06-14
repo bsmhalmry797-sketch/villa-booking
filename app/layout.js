@@ -7,7 +7,11 @@ const cairo = Cairo({
   subsets: ['arabic', 'latin'],
   weight: ['400', '600', '700', '900']
 })
-
+export const metadata = {
+  icons: {
+    icon: '/photo9.png',
+  },
+}
 export default function RootLayout({ children }) {  return (
     <html lang="ar">
       <body className={cairo.className}>
