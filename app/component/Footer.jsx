@@ -14,7 +14,7 @@ export default function Footer() {
           {/* اللوجو */}
           <div>
             <h3 className="text-yellow-400 font-black text-xl mb-2">
-              {lang === 'ar' ? 'فيلا و شقق الضيافة' : 'Hospitality Villas'}
+              {lang === 'ar' ? 'الإيواء' : 'Hospitality Villas'}
             </h3>
             <p className="text-gray-500 text-xs mt-2">
               {lang === 'ar' ? 'الدمام، المملكة العربية السعودية' : 'Dammam, Saudi Arabia'}
@@ -42,10 +42,10 @@ export default function Footer() {
               {lang === 'ar' ? 'تواصل معنا' : 'Contact Us'}
             </h4>
             <div className="flex flex-col gap-2">
-              <a href="tel:0590919995" className="text-gray-400 text-sm hover:text-yellow-400 transition">
-                📞 0590919995
+              <a href="tel:0500721012" className="text-gray-400 text-sm hover:text-yellow-400 transition">
+                📞 0500721012
               </a>
-              <a href="https://wa.me/966590919995" className="text-gray-400 text-sm hover:text-yellow-400 transition">
+              <a href="https://wa.me/966500721012" className="text-gray-400 text-sm hover:text-yellow-400 transition">
                 💬 {lang === 'ar' ? 'واتساب' : 'WhatsApp'}
               </a>
             </div>
