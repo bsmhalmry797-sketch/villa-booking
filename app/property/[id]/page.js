@@ -3,16 +3,24 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../../lib/supabase'
 import { useLang } from '../../context/LanguageContext'
-import { useParams } from 'next/navigation'
+import { useParams, useSearchParams } from 'next/navigation' // ✅ أضفنا useSearchParams
 import Link from 'next/link'
+import Image from 'next/image' // ✅ استيراد Image لمنع مشاكل الـ Linting
 
 export default function PropertyPage() {
   const { id } = useParams()
   const { lang } = useLang()
+  const searchParams = useSearchParams() // ✅ لقراءة التواريخ والضيوف من الرابط
+  
   const [property, setProperty] = useState(null)
   const [images, setImages] = useState([])
   const [activeImg, setActiveImg] = useState(0)
   const [loading, setLoading] = useState(true)
+
+  // قراءة القيم القادمة من شريط البحث
+  const checkIn = searchParams.get('checkIn')
+  const checkOut = searchParams.get('checkOut')
+  const guestsCount = parseInt(searchParams.get('guests')) || 2 // افتراضي شخصين إذا لم يحدد
 
   useEffect(() => {
     async function load() {
@@ -25,8 +33,8 @@ export default function PropertyPage() {
       setProperty(data)
 
       const allImages = [
-        data.image_url,
-        ...(data.property_images?.map(img => img.url) || [])
+        data?.image_url,
+        ...(data?.property_images?.map(img => img.url) || [])
       ].filter(Boolean)
 
       setImages(allImages)
@@ -47,22 +55,48 @@ export default function PropertyPage() {
     </div>
   )
 
+  // 🧮 --- منطق حساب السعر المتطور (شبه بوكينق) ---
+  
+  // 1. حساب عدد الليالي
+  let nights = 0
+  if (checkIn && checkOut) {
+    const diffTime = Math.abs(new Date(checkOut) - new Date(checkIn))
+    nights = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1
+  } else {
+    nights = 1 // افتراضي ليلة واحدة إذا تصفح بدون تحديد تاريخ
+  }
+
+  // 2. حساب السعر بناءً على الأشخاص (السعر الأساسي يشمل شخصين، وكل شخص زيادة بـ 50 ريال)
+  const basePricePerNight = property.price_per_night
+  const extraGuestFee = 50 // 💡 يمكنك تعديل قيمة الزيادة للشخص الواحد هنا
+  const baseGuestsLimit = 2
+
+  let finalPricePerNight = basePricePerNight
+  if (guestsCount > baseGuestsLimit) {
+    const extraGuests = guestsCount - baseGuestsLimit
+    finalPricePerNight += extraGuests * extraGuestFee
+  }
+
+  // 3. الحسبة الإجمالية النهائية
+  const totalAmount = finalPricePerNight * nights
+
   return (
     <div className="min-h-screen bg-gray-50 pt-24 pb-12 px-4">
       <div className="max-w-4xl mx-auto">
 
         {/* Gallery */}
         <div className="rounded-2xl overflow-hidden mb-6">
-
           {/* الصورة الكبيرة */}
-          <div className="relative">
-            <img
+          <div className="relative h-80 w-full">
+            <Image
               src={images[activeImg]}
               alt={property.title_en}
-              className="w-full h-80 object-cover"
+              fill
+              priority
+              className="object-cover"
             />
             {images.length > 1 && (
-              <span className="absolute bottom-3 left-3 bg-black/60 text-white text-xs px-2 py-1 rounded-lg">
+              <span className="absolute bottom-3 left-3 bg-black/60 text-white text-xs px-2 py-1 rounded-lg z-10">
                 {activeImg + 1} / {images.length}
               </span>
             )}
@@ -72,16 +106,20 @@ export default function PropertyPage() {
           {images.length > 1 && (
             <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
               {images.map((img, i) => (
-                <img
-                  key={i}
-                  src={img}
+                <div 
+                  key={i} 
                   onClick={() => setActiveImg(i)}
-                  className={`w-20 h-14 rounded-lg object-cover cursor-pointer shrink-0 transition ${
-                    activeImg === i
-                      ? 'ring-2 ring-yellow-500 opacity-100'
-                      : 'opacity-60 hover:opacity-100'
+                  className={`relative w-20 h-14 rounded-lg overflow-hidden cursor-pointer shrink-0 transition ${
+                    activeImg === i ? 'ring-2 ring-yellow-500 opacity-100' : 'opacity-60 hover:opacity-100'
                   }`}
-                />
+                >
+                  <Image
+                    src={img}
+                    alt={`thumbnail ${i}`}
+                    fill
+                    className="object-cover"
+                  />
+                </div>
               ))}
             </div>
           )}
@@ -91,7 +129,6 @@ export default function PropertyPage() {
 
           {/* المعلومات */}
           <div className="md:col-span-2">
-
             <div className="flex items-center gap-3 mb-2">
               <span className="bg-yellow-500 text-white text-xs px-2 py-1 rounded font-bold">
                 {property.type === 'villa'
@@ -124,21 +161,44 @@ export default function PropertyPage() {
                 <div className="text-xs text-gray-400">{lang === 'ar' ? 'ضيوف' : 'Guests'}</div>
               </div>
             </div>
-
           </div>
 
-          {/* السعر والحجز */}
+          {/* شباك الحجز الديناميكي شبه بوكينق */}
           <div>
-            <div className="bg-white rounded-2xl shadow-lg p-6 sticky top-24">
-              <div className="text-3xl font-black text-yellow-600 mb-1">
-                {property.price_per_night}
-              </div>
-              <div className="text-gray-400 text-sm mb-6">
-                {lang === 'ar' ? 'ريال / ليلة' : 'SAR / Night'}
+            <div className="bg-white rounded-2xl shadow-lg p-6 sticky top-24 border border-gray-100">
+              
+              {/* عرض تفاصيل الحسبة */}
+              <div className="border-b pb-4 mb-4">
+                <div className="text-xs text-gray-400 mb-1">{lang === 'ar' ? 'السعر لليلة (حسب الضيوف):' : 'Price per night (based on guests):'}</div>
+                <div className="text-2xl font-black text-yellow-600">
+                  {finalPricePerNight} <span className="text-xs text-gray-400 font-normal">{lang === 'ar' ? 'ريال / ليلة' : 'SAR / Night'}</span>
+                </div>
+                {guestsCount > baseGuestsLimit && (
+                  <p className="text-[10px] text-green-600 mt-1">
+                    *{lang === 'ar' ? `شامل زيادة ضيوف إضافيين عدد (${guestsCount - baseGuestsLimit})` : `*Includes extra guest fees for (${guestsCount - baseGuestsLimit}) guests`}
+                  </p>
+                )}
               </div>
 
+              {/* ملخص الحسبة الكاملة */}
+              <div className="flex flex-col gap-2 mb-6 text-sm text-gray-600">
+                <div className="flex justify-between">
+                  <span>{lang === 'ar' ? 'عدد الضيوف:' : 'Guests:'}</span>
+                  <span className="font-bold text-gray-800">{guestsCount}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>{lang === 'ar' ? 'عدد الليالي:' : 'Nights:'}</span>
+                  <span className="font-bold text-gray-800">{nights} {lang === 'ar' ? 'ليالي' : 'Nights'}</span>
+                </div>
+                <div className="flex justify-between border-t pt-2 mt-2 text-base">
+                  <span className="font-black text-gray-900">{lang === 'ar' ? 'المجموع الإجمالي:' : 'Total Amount:'}</span>
+                  <span className="font-black text-yellow-600 text-xl">{totalAmount} {lang === 'ar' ? 'ريال' : 'SAR'}</span>
+                </div>
+              </div>
+
+              {/* تمرير الحسبة والبيانات الكاملة لصفحة تثبيت الحجز والدفع النهائي */}
               <Link
-                href={`/booking/${property.id}`}
+                href={`/booking/${property.id}?checkIn=${checkIn}&checkOut=${checkOut}&guests=${guestsCount}&totalPrice=${totalAmount}`}
                 className="block w-full bg-yellow-600 hover:bg-yellow-500 text-white text-center font-black py-3 rounded-xl transition"
               >
                 {lang === 'ar' ? 'احجز الآن' : 'Book Now'}
