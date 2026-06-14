@@ -76,7 +76,7 @@ export default function PropertyPage() {
                   key={i}
                   src={img}
                   onClick={() => setActiveImg(i)}
-                  className={`w-20 h-14 rounded-lg object-cover cursor-pointer flex-shrink-0 transition ${
+                  className={`w-20 h-14 rounded-lg object-cover cursor-pointer shrink-0 transition ${
                     activeImg === i
                       ? 'ring-2 ring-yellow-500 opacity-100'
                       : 'opacity-60 hover:opacity-100'

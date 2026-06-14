@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase'
 import { useLang } from '../context/LanguageContext'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image' // ✅ تم إضافة استيراد مكون الـ Image
 
 function SearchContent() {
   const { lang } = useLang()
@@ -16,24 +17,25 @@ function SearchContent() {
   const checkOut = searchParams.get('checkOut')
   const guests = searchParams.get('guests')
 
+  // ✅ تم نقل دالة جلب البيانات داخل الـ useEffect لتجنب خطأ الـ missing dependency
   useEffect(() => {
-    fetchProperties()
-  }, [])
+    async function fetchProperties() {
+      let query = supabase
+        .from('properties')
+        .select('*')
+        .eq('is_available', true)
 
-  async function fetchProperties() {
-    let query = supabase
-      .from('properties')
-      .select('*')
-      .eq('is_available', true)
+      if (guests) {
+        query = query.gte('max_guests', guests)
+      }
 
-    if (guests) {
-      query = query.gte('max_guests', guests)
+      const { data } = await query
+      setProperties(data || [])
+      setLoading(false)
     }
 
-    const { data } = await query
-    setProperties(data || [])
-    setLoading(false)
-  }
+    fetchProperties()
+  }, [guests]) // ✅ أضفنا guests هنا لأن الدالة تستخدمها بالداخل وإلا سيشتكي الـ Linter
 
   return (
     <div className="min-h-screen bg-gray-50 pt-24 px-4 pb-12">
@@ -59,9 +61,16 @@ function SearchContent() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {properties.map(property => (
             <div key={property.id} className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition">
-              <div className="relative">
-                <img src={property.image_url} className="w-full h-48 object-cover" />
-                <span className="absolute top-3 right-3 bg-yellow-500 text-white text-xs px-2 py-1 rounded font-bold">
+              <div className="relative h-48 w-full"> {/* ✅ أضفنا حاوية ذات أبعاد محددة لتناسب الـ fill */}
+                {/* ✅ تم استبدال <img> بـ <Image /> الذكي مع إضافة alt */}
+                <Image 
+                  src={property.image_url} 
+                  alt={lang === 'ar' ? property.title_ar : property.title_en} 
+                  fill
+                  sizes="(max-width: 768px) 100vw, 33vw"
+                  className="object-cover" 
+                />
+                <span className="absolute top-3 right-3 bg-yellow-500 text-white text-xs px-2 py-1 rounded font-bold z-10">
                   {property.type === 'villa' ? (lang === 'ar' ? 'فيلا' : 'Villa') : (lang === 'ar' ? 'شقة' : 'Apt')}
                 </span>
               </div>
