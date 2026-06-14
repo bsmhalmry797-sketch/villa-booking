@@ -5,7 +5,9 @@ import { supabase } from '../../lib/supabase'
 import { useLang } from '../context/LanguageContext'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image' // ✅ تم إضافة استيراد مكون الـ Image
 import toast from 'react-hot-toast'
+
 export default function ProfilePage() {
   const { lang } = useLang()
   const router = useRouter()
@@ -18,43 +20,45 @@ export default function ProfilePage() {
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [confirmCancel, setConfirmCancel] = useState(null)
-  const [cancelSuccess, setCancelSuccess] = useState(false)
 
-  useEffect(() => { loadData() }, [])
+  // ✅ تم نقل دالة loadData لداخل الـ useEffect وحل مشكلة الـ الترتيب والـ missing dependencies
+  useEffect(() => {
+    async function loadData() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { router.push('/auth'); return }
+      setUser(user)
 
-  async function loadData() {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { router.push('/auth'); return }
-    setUser(user)
+      const { data: profileData } = await supabase
+        .from('profiles').select('*').eq('id', user.id).single()
+      setProfile(profileData)
+      setName(profileData?.name || '')
+      setPhone(profileData?.phone || '')
 
-    const { data: profileData } = await supabase
-      .from('profiles').select('*').eq('id', user.id).single()
-    setProfile(profileData)
-    setName(profileData?.name || '')
-    setPhone(profileData?.phone || '')
+      const { data: bookingsData } = await supabase
+        .from('bookings')
+        .select('*, properties(title_ar, title_en, image_url, price_per_night)')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+      setBookings(bookingsData || [])
+      setLoading(false)
+    }
 
-    const { data: bookingsData } = await supabase
-      .from('bookings')
-      .select('*, properties(title_ar, title_en, image_url, price_per_night)')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-    setBookings(bookingsData || [])
-    setLoading(false)
-  }
+    loadData()
+  }, [router]) // ✅ أضفنا router هنا بناءً على شروط الـ Linter القياسية لأنها مستخدمة بالداخل
 
   async function saveProfile() {
-  await supabase.from('profiles').update({ name, phone }).eq('id', user.id)
-  setProfile(prev => ({ ...prev, name, phone }))
-  setEditing(false)
-  toast.success(lang === 'ar' ? '✅ تم حفظ التغييرات' : '✅ Changes saved')
-}
+    await supabase.from('profiles').update({ name, phone }).eq('id', user.id)
+    setProfile(prev => ({ ...prev, name, phone }))
+    setEditing(false)
+    toast.success(lang === 'ar' ? '✅ تم حفظ التغييرات' : '✅ Changes saved')
+  }
 
-async function cancelBooking(bookingId) {
-  await supabase.from('bookings').update({ status: 'cancelled' }).eq('id', bookingId)
-  setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: 'cancelled' } : b))
-  setConfirmCancel(null)
-  toast.success(lang === 'ar' ? '✅ تم إلغاء الحجز' : '✅ Booking cancelled')
-}
+  async function cancelBooking(bookingId) {
+    await supabase.from('bookings').update({ status: 'cancelled' }).eq('id', bookingId)
+    setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: 'cancelled' } : b))
+    setConfirmCancel(null)
+    toast.success(lang === 'ar' ? '✅ تم إلغاء الحجز' : '✅ Booking cancelled')
+  }
 
   // تصفية الحجوزات حسب التاب
   const today = new Date().toISOString().split('T')[0]
@@ -93,23 +97,19 @@ async function cancelBooking(bookingId) {
     <div className="min-h-screen bg-gray-50 pt-24 pb-12 px-4">
       <div className="max-w-3xl mx-auto">
 
-        {/* رسالة إلغاء ناجح */}
-        {cancelSuccess && (
-          <div className="bg-green-50 border border-green-200 text-green-700 p-4 rounded-2xl mb-4 text-center font-bold">
-            ✅ {lang === 'ar' ? 'تم إلغاء حجزك بنجاح' : 'Booking cancelled successfully'}
-          </div>
-        )}
-<Link
-  href="/"
-  className="flex items-center gap-2 text-gray-500 hover:text-yellow-600 transition mb-4 text-sm font-bold"
->
-  → {lang === 'ar' ? 'الرئيسية' : 'Home'}
-</Link>
+        <Link
+          href="/"
+          className="flex items-center gap-2 text-gray-500 hover:text-yellow-600 transition mb-4 text-sm font-bold"
+        >
+          → {lang === 'ar' ? 'الرئيسية' : 'Home'}
+        </Link>
+        
         {/* بيانات المستخدم */}
         <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-4"><div className="w-16 h-16 bg-yellow-600 rounded-full flex items-center justify-center text-black font-black text-2xl">
-                {user?.email[0].toUpperCase()}
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 bg-yellow-600 rounded-full flex items-center justify-center text-black font-black text-2xl">
+                {user?.email?.[0].toUpperCase()}
               </div>
               <div>
                 <h1 className="text-xl font-black text-gray-900">{profile?.name || user?.email}</h1>
@@ -196,15 +196,22 @@ async function cancelBooking(bookingId) {
             {activeBookings.map(booking => (
               <div key={booking.id} className="bg-white rounded-2xl shadow-sm overflow-hidden">
                 <div className="flex gap-4 p-4">
-                  <img
-                    src={booking.properties?.image_url}
-                    className="w-24 h-20 rounded-xl object-cover shrink-0"
-                  />
+                  {/* ✅ تم استبدال <img> بـ <Image /> ومستوعبه ذو الأبعاد الثابتة */}
+                  <div className="relative w-24 h-20 rounded-xl overflow-hidden shrink-0">
+                    <Image
+                      src={booking.properties?.image_url}
+                      alt={lang === 'ar' ? booking.properties?.title_ar : booking.properties?.title_en}
+                      fill
+                      sizes="96px"
+                      className="object-cover"
+                    />
+                  </div>
                   <div className="flex-1">
                     <div className="flex items-start justify-between">
                       <h3 className="font-black text-gray-900">
                         {lang === 'ar' ? booking.properties?.title_ar : booking.properties?.title_en}
-                      </h3><span className={`text-xs px-2 py-1 rounded-full font-bold ${statusColors[booking.status]}`}>
+                      </h3>
+                      <span className={`text-xs px-2 py-1 rounded-full font-bold ${statusColors[booking.status]}`}>
                         {lang === 'ar' ? statusLabel[booking.status].ar : statusLabel[booking.status].en}
                       </span>
                     </div>
@@ -258,7 +265,6 @@ async function cancelBooking(bookingId) {
                   {lang === 'ar' ? 'لا، رجوع' : 'No, Back'}
                 </button>
               </div>
-              
             </div>
           </div>
         )}

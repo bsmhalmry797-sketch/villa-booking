@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useLang } from '../context/LanguageContext'
 import Link from 'next/link'
+import Image from 'next/image' // ✅ تم إضافة استيراد مكون الـ Image
 
 export default function Properties() {
   const { lang, t } = useLang()
@@ -12,23 +13,24 @@ export default function Properties() {
   const [properties, setProperties] = useState([])
   const [loading, setLoading] = useState(true)
 
+  // ✅ نقلنا الدالة لداخل الـ useEffect لتفادي خطأ استدعائها قبل التعريف
   useEffect(() => {
-    fetchProperties()
-  }, [])
+    async function fetchProperties() {
+      const { data, error } = await supabase
+        .from('properties')
+        .select('*')
 
-  async function fetchProperties() {
-    const { data, error } = await supabase
-      .from('properties')
-      .select('*')
+      if (error) {
+        console.log('خطأ:', error)
+      } else {
+        setProperties(data)
+      }
 
-    if (error) {
-      console.log('خطأ:', error)
-    } else {
-      setProperties(data)
+      setLoading(false)
     }
 
-    setLoading(false)
-  }
+    fetchProperties()
+  }, []) // مصفوفة فارغة لأنها تعمل مرة واحدة عند تحميل المكون
 
   return (
     <section className="py-14 px-4 bg-white">
@@ -54,14 +56,18 @@ export default function Properties() {
               <div key={property.id} className="rounded-2xl overflow-hidden shadow-lg border border-gray-100 hover:shadow-xl transition">
 
                 {/* الصورة + Badge */}
-                <div className="relative">
-                  <img
+                {/* ✅ أضفنا كلاسات الحاوية والأبعاد المناسبة للـ fill */}
+                <div className="relative h-48 w-full"> 
+                  {/* ✅ تم استبدال <img> بـ <Image /> لضمان أداء وسرعة أفضل وتجاوز الـ Linting */}
+                  <Image
                     src={property.image_url}
-                    alt={property.title_en}
-                    className="w-full h-48 object-cover"
+                    alt={lang === 'ar' ? property.title_ar : property.title_en}
+                    fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+                    className="object-cover"
                   />
-                  <span className="absolute top-3 right-3 bg-yellow-500 text-white text-xs px-2 py-1 rounded font-bold">
-                    {lang === 'ar' ? property.type === 'villa' ? 'فيلا' : 'شقة' : property.type}
+                  <span className="absolute top-3 right-3 bg-yellow-500 text-white text-xs px-2 py-1 rounded font-bold z-10">
+                    {lang === 'ar' ? (property.type === 'villa' ? 'فيلا' : 'شقة') : property.type}
                   </span>
                 </div>
 
